@@ -1,0 +1,11 @@
+name: Register for the workshop
+description: Enroll your GitHub account in the active Agentic 101 MCP workshop
+title: "Workshop registration"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit this issue while signed in with the GitHub account you will use
+        for the workshop. Registration uses the author of the issue; you do not
+        need to enter your username.
+

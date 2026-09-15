@@ -1,0 +1,72 @@
+name: Enroll issue author
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: enroll-${{ github.event.issue.user.id }}
+  cancel-in-progress: false
+
+jobs:
+  enroll:
+    if: github.event.issue.user.type == 'User'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate registration configuration
+        env:
+          CLASSROOM50_TEACHER_TOKEN: ${{ secrets.CLASSROOM50_TEACHER_TOKEN }}
+          CLASSROOM50_ORG: ${{ vars.CLASSROOM50_ORG }}
+          CLASSROOM50_CLASSROOM: ${{ vars.CLASSROOM50_CLASSROOM }}
+          ASSIGNMENT_URL: ${{ vars.ASSIGNMENT_URL }}
+        run: |
+          : "${CLASSROOM50_TEACHER_TOKEN:?CLASSROOM50_TEACHER_TOKEN secret is not set}"
+          : "${CLASSROOM50_ORG:?CLASSROOM50_ORG variable is not set}"
+          : "${CLASSROOM50_CLASSROOM:?CLASSROOM50_CLASSROOM variable is not set}"
+          : "${ASSIGNMENT_URL:?ASSIGNMENT_URL variable is not set}"
+
+      - name: Install Classroom50 teacher CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install foundation50/gh-teacher --pin v1.51.2
+
+      - name: Enroll issue author
+        env:
+          GH_TOKEN: ${{ secrets.CLASSROOM50_TEACHER_TOKEN }}
+          CLASSROOM50_ORG: ${{ vars.CLASSROOM50_ORG }}
+          CLASSROOM50_CLASSROOM: ${{ vars.CLASSROOM50_CLASSROOM }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+        run: >-
+          gh teacher roster add
+          "$CLASSROOM50_ORG"
+          "$CLASSROOM50_CLASSROOM"
+          "$ISSUE_AUTHOR"
+
+      - name: Confirm enrollment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ASSIGNMENT_URL: ${{ vars.ASSIGNMENT_URL }}
+        run: |
+          printf '%s\n' \
+            "You are enrolled. Accept the GitHub organization invitation if one arrives, then open the workshop: $ASSIGNMENT_URL" \
+            > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+          gh issue close "$ISSUE_NUMBER"
+
+      - name: Report enrollment failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          printf '%s\n' \
+            "Registration did not complete. Please leave this issue open so the workshop organizer can fix it." \
+            > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
