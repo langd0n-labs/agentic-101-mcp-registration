@@ -1,6 +1,7 @@
 name: Enroll issue author
 
 on:
+  workflow_dispatch:
   issues:
     types: [opened]
 
@@ -13,8 +14,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate registration configuration
+        env:
+          CLASSROOM50_TEACHER_TOKEN: ${{ secrets.CLASSROOM50_TEACHER_TOKEN }}
+          CLASSROOM50_ORG: ${{ vars.CLASSROOM50_ORG }}
+          CLASSROOM50_CLASSROOM: ${{ vars.CLASSROOM50_CLASSROOM }}
+          ASSIGNMENT_URL: ${{ vars.ASSIGNMENT_URL }}
+        run: |
+          : "${CLASSROOM50_TEACHER_TOKEN:?CLASSROOM50_TEACHER_TOKEN secret is not set}"
+          : "${CLASSROOM50_ORG:?CLASSROOM50_ORG variable is not set}"
+          : "${CLASSROOM50_CLASSROOM:?CLASSROOM50_CLASSROOM variable is not set}"
+          : "${ASSIGNMENT_URL:?ASSIGNMENT_URL variable is not set}"
+
+      - name: Install Classroom50 teacher CLI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install foundation50/gh-teacher --pin v1.51.2
+
+      - name: Verify Classroom50 access
+        env:
+          GH_TOKEN: ${{ secrets.CLASSROOM50_TEACHER_TOKEN }}
+          CLASSROOM50_ORG: ${{ vars.CLASSROOM50_ORG }}
+          CLASSROOM50_CLASSROOM: ${{ vars.CLASSROOM50_CLASSROOM }}
+        run: >-
+          gh teacher roster list
+          "$CLASSROOM50_ORG"
+          "$CLASSROOM50_CLASSROOM"
+          --quiet
+          > /dev/null
+
   enroll:
-    if: github.event.issue.user.type == 'User'
+    if: github.event_name == 'issues' && github.event.issue.user.type == 'User'
     runs-on: ubuntu-latest
     steps:
       - name: Validate registration configuration
