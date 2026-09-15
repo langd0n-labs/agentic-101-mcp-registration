@@ -8,4 +8,10 @@ body:
         Submit this issue while signed in with the GitHub account you will use
         for the workshop. Registration uses the author of the issue; you do not
         need to enter your username.
-
+  - type: checkboxes
+    id: enrollment
+    attributes:
+      label: Enroll this account
+      options:
+        - label: Add the GitHub account submitting this issue to the workshop
+          required: true
